@@ -64,6 +64,68 @@ function setHeader(title, back) { $('#title').textContent = title; $('#btnBack')
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
 
+
+// ---- 语音播报（Web Speech API）----
+const TKEY = 'ylj_tts_v1';
+const CN = '零一二三四五六七八九';
+let T = (() => { try { return Object.assign({on: true, rate: 1.1, room: false}, JSON.parse(localStorage.getItem(TKEY)) || {}); } catch (e) { return {on: true, rate: 1.1, room: false}; } })();
+function saveT() { try { localStorage.setItem(TKEY, JSON.stringify(T)); } catch (e) {} }
+const synth = ('speechSynthesis' in window && 'SpeechSynthesisUtterance' in window) ? window.speechSynthesis : null;
+let zhVoice = null, voicesLoaded = false, ttsUnlocked = false;
+function pickVoice() {
+  if (!synth) return;
+  let vs = []; try { vs = synth.getVoices() || []; } catch (e) {}
+  if (!vs.length) return;
+  voicesLoaded = true;
+  const norm = v => String(v.lang || '').replace('_', '-').toLowerCase();
+  zhVoice = vs.find(v => norm(v) === 'zh-cn') || vs.find(v => norm(v).startsWith('zh-hans')) || vs.find(v => norm(v) === 'cmn-hans-cn')
+    || vs.find(v => /^zh|^cmn/.test(norm(v)) && !/hk|tw|yue/.test(norm(v))) || vs.find(v => /^zh|^cmn/.test(norm(v))) || null;
+}
+if (synth) { pickVoice(); try { synth.addEventListener ? synth.addEventListener('voiceschanged', pickVoice) : (synth.onvoiceschanged = pickVoice); } catch (e) {} }
+// 可用：有 speechSynthesis，且（语音列表还没加载 或 有中文语音）
+function ttsAvailable() { return !!synth && (!voicesLoaded || !!zhVoice); }
+function ttsReason() { return !synth ? '这部手机的浏览器不支持语音播报' : '这部手机没有中文语音包，无法播报（可在系统设置 → 文字转语音 里下载中文语音）'; }
+function speak(text, queue) {
+  if (!T.on || !ttsAvailable() || !text) return;
+  try {
+    if (!queue) synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN'; if (zhVoice) u.voice = zhVoice;
+    u.rate = Math.min(2, Math.max(0.5, +T.rate || 1)); u.pitch = 1; u.volume = 1;
+    synth.speak(u);
+    if (synth.paused) synth.resume();
+  } catch (e) {}
+}
+// iOS Safari：必须在用户点击里第一次调用 speak，之后才能正常播报
+function unlockTTS() {
+  if (ttsUnlocked || !synth) return; ttsUnlocked = true;
+  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.lang = 'zh-CN'; synth.speak(u); } catch (e) {}
+  ['touchend', 'click'].forEach(ev => document.removeEventListener(ev, unlockTTS, true));
+}
+['touchend', 'click'].forEach(ev => document.addEventListener(ev, unlockTTS, true));
+// 数字逐位读：303 → 三零三
+const digitsCN = n => String(n).replace(/\d/g, d => CN[d]);
+// 整数读成数值：1221 → 一千二百二十一；1036 → 一千零三十六；10 → 十
+function numCN(n) {
+  n = Math.floor(Math.abs(+n)); if (!n) return '零';
+  const sec = x => { // 0..9999
+    const u = ['', '十', '百', '千']; let out = '', zero = false;
+    for (let p = 3; p >= 0; p--) {
+      const d = Math.floor(x / Math.pow(10, p)) % 10;
+      if (d) { if (zero) out += '零'; zero = false; out += CN[d] + u[p]; }
+      else if (out) zero = true;
+    }
+    return out;
+  };
+  const wan = Math.floor(n / 10000), low = n % 10000;
+  let s = wan ? sec(wan) + '万' : '';
+  if (low) s += (wan && low < 1000 ? '零' : '') + sec(low);
+  s = s.replace(/^一十/, '十');            // 一十五 → 十五，一十万 → 十万
+  s = s.replace(/^二(千|万)/, '两$1');      // 二千 → 两千
+  return s;
+}
+window.__tts = {numCN, digitsCN, speak, T, ttsAvailable}; // 测试用
+
 // ---- 首页：选栋/楼 ----
 function home() {
   stopTorch();
@@ -125,6 +187,7 @@ function entry(b, f, i) {
   $('#chk').onclick = () => floorCheck(b, f);
   $('#torch').onclick = toggleTorch;
   $('#note').onclick = () => noteSheet(b, room);
+  if (T.room) speak(digitsCN(room) + '室', true);
   refresh();
 }
 function refresh() {
@@ -146,16 +209,21 @@ function refresh() {
 }
 function key(k) {
   vibrate(10);
-  if (k === 'del') { buf = buf.slice(0, -1); return refresh(); }
+  if (k === 'del') { speak('删除'); buf = buf.slice(0, -1); return refresh(); }
   if (k === 'ok') return confirmV();
-  if (buf.length >= 6) return toast('最多 6 位数');
+  if (buf.length >= 6) { speak('最多六位'); return toast('最多 6 位数'); }
+  speak(CN[k]);
   if (buf === '0') buf = '';
   buf += k; refresh();
 }
 function confirmV() {
   const {b, f, i} = cur, rooms = FLOORS[b][f], room = rooms[i], r = rec(b, room);
-  if (buf === '') { if (r) return advance(); return toast('请先输入读数'); }
+  if (buf === '') {
+    if (r) { speak(digitsCN(room) + '室，' + numCN(r.v) + (check(b, room, r.v).length ? '，读数异常，请复核' : '')); return advance(); }
+    speak('请先输入读数'); return toast('请先输入读数');
+  }
   const v = +buf, w = check(b, room, v);
+  speak(digitsCN(room) + '室，' + numCN(v) + (w.length ? '，读数异常，请复核' : ''));
   const doSave = note => {
     S.r[b + '-' + room] = {v, n: note != null ? note : (r ? r.n : ''), t: Date.now()};
     save(); vibrate(w.length ? [40, 60, 40] : 20); buf = ''; advance();
@@ -370,6 +438,12 @@ function menu() {
     <button class="btn" id="m1">导出 Excel（含进度总览）</button>
     <button class="btn sec" id="m2">查看全部楼层进度</button>
     <button class="btn sec" id="m5">导入 Excel（更新房号/二月读数）</button>
+    ${ttsAvailable() ? `<div class="tts">
+      <button class="btn sec" id="mt">语音播报：${T.on ? '开' : '关'}</button>
+      <div id="ttsOpts" class="${T.on ? '' : 'hidden'}">
+        <label class="ttsrow">语速 <input type="range" id="mr" min="0.6" max="1.8" step="0.1" value="${T.rate}"> <span id="mrv">${(+T.rate).toFixed(1)}</span></label>
+        <label class="ttsrow"><input type="checkbox" id="mroom" ${T.room ? 'checked' : ''}> 打开新表时播报房号</label>
+      </div></div>` : `<div class="ttstip">🔇 ${ttsReason()}</div>`}
     <button class="btn danger" id="m3">清空本机全部十月读数</button>
     <button class="btn sec" id="m4">关闭</button>`, m => {
     m.querySelector('#m1').onclick = () => { m.remove(); exportXlsx(); };
@@ -381,6 +455,14 @@ function menu() {
     };
     m.querySelector('#m4').onclick = () => m.remove();
     m.querySelector('#m5').onclick = () => { m.remove(); importScreen(); };
+    const mt = m.querySelector('#mt');
+    if (mt) {
+      mt.onclick = () => { T.on = !T.on; saveT(); mt.textContent = '语音播报：' + (T.on ? '开' : '关'); m.querySelector('#ttsOpts').classList.toggle('hidden', !T.on); if (T.on) speak('语音播报已打开'); else if (synth) synth.cancel(); };
+      const mr = m.querySelector('#mr');
+      mr.oninput = () => { T.rate = +mr.value; m.querySelector('#mrv').textContent = T.rate.toFixed(1); saveT(); };
+      mr.onchange = () => speak('一千二百二十一');
+      m.querySelector('#mroom').onchange = e => { T.room = e.target.checked; saveT(); };
+    }
   });
 }
 $('#btnMenu').textContent = '菜单';
