@@ -187,7 +187,6 @@ function entry(b, f, i) {
   $('#chk').onclick = () => floorCheck(b, f);
   $('#torch').onclick = toggleTorch;
   $('#note').onclick = () => noteSheet(b, room);
-  if (T.room) speak(digitsCN(room) + '室', true);
   refresh();
 }
 function refresh() {
@@ -209,9 +208,9 @@ function refresh() {
 }
 function key(k) {
   vibrate(10);
-  if (k === 'del') { speak('删除'); buf = buf.slice(0, -1); return refresh(); }
+  if (k === 'del') { buf = buf.slice(0, -1); return refresh(); }
   if (k === 'ok') return confirmV();
-  if (buf.length >= 6) { speak('最多六位'); return toast('最多 6 位数'); }
+  if (buf.length >= 6) { return toast('最多 6 位数'); }
   speak(CN[k]);
   if (buf === '0') buf = '';
   buf += k; refresh();
@@ -219,11 +218,10 @@ function key(k) {
 function confirmV() {
   const {b, f, i} = cur, rooms = FLOORS[b][f], room = rooms[i], r = rec(b, room);
   if (buf === '') {
-    if (r) { speak(digitsCN(room) + '室，' + numCN(r.v) + (check(b, room, r.v).length ? '，读数异常，请复核' : '')); return advance(); }
-    speak('请先输入读数'); return toast('请先输入读数');
+    if (r) { return advance(); }
+    return toast('请先输入读数');
   }
   const v = +buf, w = check(b, room, v);
-  speak(digitsCN(room) + '室，' + numCN(v) + (w.length ? '，读数异常，请复核' : ''));
   const doSave = note => {
     S.r[b + '-' + room] = {v, n: note != null ? note : (r ? r.n : ''), t: Date.now()};
     save(); vibrate(w.length ? [40, 60, 40] : 20); buf = ''; advance();
@@ -442,7 +440,6 @@ function menu() {
       <button class="btn sec" id="mt">语音播报：${T.on ? '开' : '关'}</button>
       <div id="ttsOpts" class="${T.on ? '' : 'hidden'}">
         <label class="ttsrow">语速 <input type="range" id="mr" min="0.6" max="1.8" step="0.1" value="${T.rate}"> <span id="mrv">${(+T.rate).toFixed(1)}</span></label>
-        <label class="ttsrow"><input type="checkbox" id="mroom" ${T.room ? 'checked' : ''}> 打开新表时播报房号</label>
       </div></div>` : `<div class="ttstip">🔇 ${ttsReason()}</div>`}
     <button class="btn danger" id="m3">清空本机全部十月读数</button>
     <button class="btn sec" id="m4">关闭</button>`, m => {
@@ -460,8 +457,7 @@ function menu() {
       mt.onclick = () => { T.on = !T.on; saveT(); mt.textContent = '语音播报：' + (T.on ? '开' : '关'); m.querySelector('#ttsOpts').classList.toggle('hidden', !T.on); if (T.on) speak('语音播报已打开'); else if (synth) synth.cancel(); };
       const mr = m.querySelector('#mr');
       mr.oninput = () => { T.rate = +mr.value; m.querySelector('#mrv').textContent = T.rate.toFixed(1); saveT(); };
-      mr.onchange = () => speak('一千二百二十一');
-      m.querySelector('#mroom').onchange = e => { T.room = e.target.checked; saveT(); };
+      mr.onchange = () => speak('一二三');
     }
   });
 }
