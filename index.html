@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0e7490">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="抄水表">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="app.css">
+<title>英伦金沙抄水表</title>
+</head>
+<body>
+<header id="top">
+  <button id="btnBack" class="hbtn hidden">‹ 返回</button>
+  <h1 id="title">英伦金沙 · 十月抄表</h1>
+  <button id="btnMenu" class="hbtn">导出</button>
+</header>
+<main id="view"></main>
+<div id="toast" class="hidden"></div>
+<video id="torchVideo" playsinline muted></video>
+<script src="xlsx.full.min.js" defer></script>
+<script src="app.js"></script>
+</body>
+</html>
