@@ -3,6 +3,7 @@
   "short_name": "抄水表",
   "lang": "zh-CN",
   "start_url": "./index.html",
+  "id": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

@@ -8,7 +8,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="抄水表">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="app.css">
 <title>英伦金沙抄水表</title>
@@ -16,13 +17,16 @@
 <body>
 <header id="top">
   <button id="btnBack" class="hbtn hidden">‹ 返回</button>
-  <h1 id="title">英伦金沙 · 十月抄表</h1>
+  <h1 id="title">英伦金沙 · 抄水表</h1>
   <button id="btnMenu" class="hbtn">导出</button>
 </header>
 <main id="view"></main>
 <div id="toast" class="hidden"></div>
 <video id="torchVideo" playsinline muted></video>
-<script src="xlsx.full.min.js" defer></script>
+<script src="lib/xlsx.full.min.js" defer></script>
+<script src="lib/jszip.min.js" defer></script>
+<script src="lib/ocr_core.js"></script>
+<script src="lib/web_media.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
